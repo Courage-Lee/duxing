@@ -67,7 +67,7 @@ const api = {
     ipcRenderer.invoke('notes:update', id, patch),
   deleteNote: (id: string): Promise<boolean> => ipcRenderer.invoke('notes:delete', id),
   searchNotes: (q: string): Promise<SearchHit[]> => ipcRenderer.invoke('notes:search', q),
-  askNotes: (q: string): Promise<AskResult> => ipcRenderer.invoke('notes:ask', q),
+  askNotes: (q: string, images?: string[]): Promise<AskResult> => ipcRenderer.invoke('notes:ask', q, images),
 
   // 目标路线图
   listGoals: (): Promise<Goal[]> => ipcRenderer.invoke('goals:list'),

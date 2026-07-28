@@ -184,7 +184,7 @@ ipcMain.handle('notes:delete', (_e, id) => {
   return true;
 });
 ipcMain.handle('notes:search', (_e, q) => searchNotes(q));
-ipcMain.handle('notes:ask', (_e, q) => askQuestion(q));
+ipcMain.handle('notes:ask', (_e, q, images) => askQuestion(q, images));
 ipcMain.handle('notes:exportMarkdown', () => exportNotesMarkdown());
 
 // ---------- 目标路线图 IPC ----------

@@ -130,7 +130,13 @@ function makeSnippet(content: string, idx: number): string {
 
 /** 知识库问答：先检索相关笔记，再让 AI 基于笔记回答；无 AI 时降级为返回匹配列表。支持图片。 */
 export async function askQuestion(question: string, images?: string[]): Promise<AskResult> {
-  const hits = searchNotes(question, 6);
+  // 检索本身可能因数据库异常抛错，这里必须兜底，否则会冒泡成调用方的「识别失败」
+  let hits: SearchHit[] = [];
+  try {
+    hits = searchNotes(question, 6);
+  } catch {
+    hits = [];
+  }
   const sources = hits.map((h) => h.note);
   if (sources.length === 0) {
     return {

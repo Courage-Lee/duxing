@@ -22,6 +22,13 @@ export default function Sidebar({ onOpenSettings }: { onOpenSettings: () => void
       </div>
 
       <button
+        className={view === 'home' ? 'nav-item active' : 'nav-item'}
+        onClick={() => setView('home')}
+      >
+        <Icon name="home" />
+        <span>首页</span>
+      </button>
+      <button
         className={view === 'todo' ? 'nav-item active' : 'nav-item'}
         onClick={() => setView('todo')}
       >

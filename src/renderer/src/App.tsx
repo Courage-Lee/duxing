@@ -14,7 +14,7 @@ import Settings from './components/Settings';
 import ThemeToggle from './components/ThemeToggle';
 import KnowledgePage from './components/KnowledgePage';
 import DailyBriefing from './components/DailyBriefing';
-import SmartInput from './components/SmartInput';
+import ChatHome from './components/ChatHome';
 import TodoToolbar from './components/TodoToolbar';
 import CalendarView from './components/CalendarView';
 import StatsView from './components/StatsView';
@@ -42,7 +42,9 @@ export default function App() {
     <div className="app-grid">
       <Sidebar onOpenSettings={() => setSettingsOpen(true)} />
       <main className="main">
-        {view === 'todo' ? (
+        {view === 'home' ? (
+          <ChatHome />
+        ) : view === 'todo' ? (
           <>
             <header className="topbar">
               <TodayOverview />
@@ -71,7 +73,6 @@ export default function App() {
         ) : (
           <KnowledgePage />
         )}
-        {(view === 'todo' || view === 'briefing') && <SmartInput />}
         {editorOpen && <TaskEditor key={editorTask?.id ?? 'new'} />}
         {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
         <Celebration />

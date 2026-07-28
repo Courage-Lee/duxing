@@ -27,6 +27,6 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
-  artifactName: "${productName} Setup ${version}.${ext}"
+  artifactName: "duxing-setup-${version}.${ext}"
 portable:
-  artifactName: "${productName} ${version}.${ext}"
+  artifactName: "duxing-portable-${version}.${ext}"

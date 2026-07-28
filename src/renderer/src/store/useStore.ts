@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { Task, Settings, TaskDraft, TestResult, Note, SearchHit, SmartResult, Briefing, BriefingText, SubTask, Goal, GoalDraft, GoalStage, GoalStageDraft, Memory, MemoryDraft, PlanStage, MemoryType } from '../../../shared/types';
 
 type Theme = 'light' | 'dark' | 'system';
-type View = 'todo' | 'kb' | 'briefing' | 'calendar' | 'stats' | 'quadrant' | 'goals' | 'memory';
+type View = 'home' | 'todo' | 'kb' | 'briefing' | 'calendar' | 'stats' | 'quadrant' | 'goals' | 'memory';
 type PriorityFilter = 1 | 2 | 3 | 'all';
 
 interface Store {
@@ -118,7 +118,7 @@ export const useStore = create<Store>((set, get) => ({
   editorOpen: false,
   editorTask: null,
   editorDraft: null,
-  view: 'todo',
+  view: 'home',
   notes: [],
   kbSelectedId: null,
   smartLoading: false,
@@ -279,8 +279,9 @@ export const useStore = create<Store>((set, get) => ({
         smartToast: { kind: answers.length ? 'info' : 'success', text: summary, answers },
       });
       await get().refresh();
-    } catch {
-      set({ smartLoading: false, smartToast: { kind: 'error', text: '识别失败，请重试' } });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '未知错误';
+      set({ smartLoading: false, smartToast: { kind: 'error', text: `处理失败：${msg}` } });
     }
   },
 

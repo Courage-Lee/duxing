@@ -30,7 +30,7 @@ declare global {
       updateNote: (id: string, patch: Partial<Pick<Note, 'title' | 'content'>>) => Promise<Note | null>;
       deleteNote: (id: string) => Promise<boolean>;
       searchNotes: (q: string) => Promise<SearchHit[]>;
-      askNotes: (q: string) => Promise<AskResult>;
+      askNotes: (q: string, images?: string[]) => Promise<AskResult>;
       smartProcess: (text: string, images?: string[], forcedIntent?: 'todo' | 'note' | 'query') => Promise<SmartResult>;
       // 目标路线图
       listGoals: () => Promise<Goal[]>;

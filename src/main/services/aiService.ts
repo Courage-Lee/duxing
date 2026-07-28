@@ -467,8 +467,13 @@ export async function smartProcess(
 ): Promise<SmartResult> {
   const settings = loadSettings();
   if (forcedType) {
-    const intent = await buildForced(text, images, forcedType);
-    return { intents: [intent], usedAI: !settings.localOnly && !!settings.apiKey };
+    try {
+      const intent = await buildForced(text, images, forcedType);
+      return { intents: [intent], usedAI: !settings.localOnly && !!settings.apiKey };
+    } catch {
+      // 强制类型分支异常（如知识库提问检索失败）时，降级为本地处理，绝不应抛到调用方
+      return { intents: await fillLocal(text, images), usedAI: false };
+    }
   }
   if (settings.localOnly || !settings.apiKey) {
     return { intents: await fillLocal(text, images), usedAI: false };
