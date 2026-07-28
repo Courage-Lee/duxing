@@ -1,0 +1,24 @@
+# ── 依赖 ──
+node_modules/
+
+# ── 构建产物 ──
+# electron-vite 构建输出（main / preload / renderer）
+out/
+dist/
+
+# electron-builder 打包产物（含 release-pkg* 等历史目录）
+release/
+release-*/
+
+# 本地打包输出的可执行文件
+测试版exe/
+
+# ── 日志与临时文件 ──
+*.log
+
+# electron-vite 运行期生成的临时配置副本
+electron.vite.config.*.mjs
+
+# ── 系统 ──
+.DS_Store
+Thumbs.db
