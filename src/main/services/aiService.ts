@@ -6,7 +6,7 @@
  */
 
 import { loadSettings } from '../db/settings';
-import { Task, TaskDraft, Priority, ParseResult, Note, SmartResult, SmartIntent, Briefing, BriefingText, Recurrence, SubTask, PlanStage, Memory, MemoryType } from '../../shared/types';
+import { Task, TaskDraft, Priority, ParseResult, Note, SmartResult, SmartIntent, Briefing, BriefingText, Recurrence, SubTask, PlanStage, Memory, MemoryType, ChatMessage } from '../../shared/types';
 import { getBriefing } from '../db/briefing';
 
 const CATEGORY_HINT = '工作/生活/学习/健康/其他';
@@ -337,6 +337,75 @@ export async function answerWithNotes(question: string, notes: Note[], images?: 
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const data = await resp.json();
   return data?.choices?.[0]?.message?.content?.trim() || '（AI 返回为空）';
+}
+
+// ---------- 通用对话：多轮自由问答 ----------
+const CHAT_SYSTEM =
+  '你是「笃行」，一个本地优先的个人 AI 助手。你可以回答各类问题、帮助解决问题、提供建议与方案，' +
+  '也可以指导用户如何记笔记、安排待办（当用户明确要求时）。' +
+  '回答原则：直接、有针对性、实用，避免空话套话；能用要点就用要点。' +
+  '你会结合对话历史理解用户的追问和补充——如果用户用了"上面/刚才/它/这个"等指代，请根据上下文推断指代对象。' +
+  '如果用户只是在询问或讨论，就直接解答；只有当用户明确要求"记下来/建一个待办"时才提示其使用对应功能，不要擅自创建数据。';
+
+/**
+ * 通用对话：基于完整历史做多轮问答，支持图片（多模态）。
+ * 永不抛出未捕获异常——无 Key / 仅本地模式 / 网络错误时都返回明确的文字提示，保证前端一定有回应。
+ */
+export async function chatTurn(
+  userText: string,
+  history: ChatMessage[],
+  images?: string[]
+): Promise<string> {
+  const settings = loadSettings();
+  if (settings.localOnly || !settings.apiKey) {
+    return '当前是「仅本地模式」或未配置 AI 的 API Key，暂时无法自由对话。请到「设置」中填写 API Key 与 Base URL 后重试；也可以切换到「提问」模式查询已记录的知识库。';
+  }
+  const fetchFn = (globalThis as any).fetch as typeof fetch;
+  const hasImages = !!images?.length;
+  const userContent: any = hasImages
+    ? [{ type: 'text', text: userText }, ...images!.map((url) => ({ type: 'image_url', image_url: { url } }))]
+    : userText;
+
+  // 历史仅保留文本，避免把每轮图片都重复带入上下文；最多取最近 20 轮
+  const historyMsgs = (history || [])
+    .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content)
+    .slice(-20)
+    .map((m) => ({ role: m.role, content: m.content }));
+
+  const messages: any[] = [
+    { role: 'system', content: CHAT_SYSTEM },
+    ...historyMsgs,
+    { role: 'user', content: userContent },
+  ];
+
+  try {
+    const resp = await fetchFn(`${settings.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
+      body: JSON.stringify({
+        model: settings.model || 'deepseek-chat',
+        temperature: 0.7,
+        max_tokens: 2000,
+        messages,
+      }),
+    });
+    if (!resp.ok) {
+      let detail = '';
+      try {
+        const err = await resp.json();
+        detail = err?.error?.message || JSON.stringify(err);
+      } catch {
+        /* ignore */
+      }
+      return `（对话请求失败：HTTP ${resp.status} ${detail || resp.statusText}）`;
+    }
+    const data = await resp.json();
+    const text: string = data?.choices?.[0]?.message?.content?.trim();
+    return text || '（AI 返回为空，请换个说法再试）';
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return `（对话出错：${msg}）`;
+  }
 }
 
 // ---------- 统一智能输入：自动分辨 todo / note / query ----------

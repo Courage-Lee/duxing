@@ -32,6 +32,7 @@ declare global {
       searchNotes: (q: string) => Promise<SearchHit[]>;
       askNotes: (q: string, images?: string[]) => Promise<AskResult>;
       smartProcess: (text: string, images?: string[], forcedIntent?: 'todo' | 'note' | 'query') => Promise<SmartResult>;
+      chatTurn: (userText: string, history: ChatMessage[], images?: string[]) => Promise<string>;
       // 目标路线图
       listGoals: () => Promise<Goal[]>;
       getGoal: (id: string) => Promise<Goal | null>;

@@ -24,6 +24,7 @@ import {
   recommendOrder,
   testConnection,
   smartProcess,
+  chatTurn,
   generateDailyBriefing,
   breakdownTask,
   planGoal,
@@ -155,6 +156,7 @@ ipcMain.handle('ai:recommend', () => recommendOrder());
 ipcMain.handle('ai:breakdown', (_e, title, notes) => breakdownTask(title, notes));
 ipcMain.handle('ai:test', (_e, opts) => testConnection(opts));
 ipcMain.handle('ai:smart', (_e, text, images, forcedIntent) => smartProcess(text, images, forcedIntent));
+ipcMain.handle('ai:chat', (_e, userText, history, images) => chatTurn(userText, history, images));
 ipcMain.handle('briefing:get', () => getBriefing());
 ipcMain.handle('briefing:generate', () => generateDailyBriefing());
 ipcMain.handle('settings:get', () => loadSettings());

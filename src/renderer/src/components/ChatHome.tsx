@@ -5,7 +5,7 @@ import { Note } from '../../../shared/types';
 /** 对话式首页：ChatGPT 风格。顶部模块选择 + 底部输入框（支持 / 命令与图片），
  *  提问直接走知识库问答、待办/知识分别落库，统一以气泡呈现结果。 */
 
-type Mode = 'auto' | 'todo' | 'note' | 'query';
+type Mode = 'chat' | 'auto' | 'todo' | 'note' | 'query';
 
 interface ChatMessage {
   id: string;
@@ -24,6 +24,7 @@ interface Cmd {
 }
 
 const MODES: Cmd[] = [
+  { key: 'chat', label: '对话', desc: '自由问答 / 多轮对话' },
   { key: 'auto', label: '智能', desc: '自动识别意图' },
   { key: 'todo', label: '待办', desc: '创建一条待办' },
   { key: 'note', label: '知识', desc: '保存到知识库' },
@@ -31,10 +32,11 @@ const MODES: Cmd[] = [
 ];
 
 const SUGGESTIONS: { text: string; mode: Mode }[] = [
-  { text: '帮我记一下：周报模板在团队共享盘', mode: 'note' },
+  { text: '用通俗的话讲讲什么是「复利」', mode: 'chat' },
+  { text: '帮我列一个周末大扫除的步骤清单', mode: 'chat' },
   { text: '明天上午 10 点前提交设计稿', mode: 'todo' },
+  { text: '记一下：周报模板在团队共享盘', mode: 'note' },
   { text: '我之前记的服务器密码是什么？', mode: 'query' },
-  { text: '把今天要做的事整理成清单', mode: 'auto' },
 ];
 
 const uid = () => Math.random().toString(36).slice(2);
@@ -63,7 +65,7 @@ export default function ChatHome() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
   const [images, setImages] = useState<string[]>([]);
-  const [mode, setMode] = useState<Mode>('auto');
+  const [mode, setMode] = useState<Mode>('chat');
   const [loading, setLoading] = useState(false);
 
   const [slashOpen, setSlashOpen] = useState(false);
@@ -189,7 +191,14 @@ export default function ChatHome() {
     const fail = (msg: string) => updateMsg(aId, { pending: false, error: true, text: msg });
 
     try {
-      if (mode === 'query') {
+      if (mode === 'chat') {
+        // 多轮对话：把已有历史（文本）一并传给后端，支持追问与上下文指代
+        const history = messages
+          .filter((m) => m.text && !m.pending)
+          .map((m) => ({ role: m.role, content: m.text, images: m.images }));
+        const answer = await window.api.chatTurn(content, history, imgs);
+        updateMsg(aId, { pending: false, text: answer });
+      } else if (mode === 'query') {
         const r = await window.api.askNotes(content, imgs);
         updateMsg(aId, { pending: false, text: r.answer, sources: r.sources });
       } else if (mode === 'note') {
@@ -252,7 +261,7 @@ export default function ChatHome() {
         {messages.length === 0 ? (
           <div className="chat-empty">
             <div className="chat-greet">你好，我是笃行</div>
-            <div className="chat-sub">本地优先的 AI 助手。可以问我知识库里的内容、记笔记，或直接安排待办。</div>
+            <div className="chat-sub">本地优先的 AI 助手。直接问我任何问题——我可以多轮对话、解答、给建议；也能帮你记笔记或安排待办。</div>
             <div className="chat-suggest">
               {SUGGESTIONS.map((s, i) => (
                 <button key={i} className="suggest-chip" onClick={() => applySuggestion(s)}>
@@ -335,7 +344,9 @@ export default function ChatHome() {
             className="chat-textarea"
             value={text}
             placeholder={
-              mode === 'query'
+              mode === 'chat'
+                ? '直接提问，或发图片让我看看…（可连续追问）'
+                : mode === 'query'
                 ? '向知识库提问…（支持图片）'
                 : mode === 'todo'
                 ? '描述一条待办…'
@@ -377,7 +388,9 @@ export default function ChatHome() {
 
         <div className="chat-hint">
           当前模式：<b>{modeLabel}</b>
-          {mode === 'auto' && '（自动识别待办 / 知识 / 提问）'} · 输入 / 可切换功能
+          {mode === 'chat'
+            ? '（自由对话，支持连续追问）'
+            : mode === 'auto' && '（自动识别待办 / 知识 / 提问）'} · 输入 / 可切换功能
         </div>
       </div>
     </div>
