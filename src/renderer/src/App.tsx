@@ -27,6 +27,7 @@ export default function App() {
   const init = useStore((s) => s.init);
   const view = useStore((s) => s.view);
   const editorOpen = useStore((s) => s.editorOpen);
+  const editorTask = useStore((s) => s.editorTask);
   const loadGoals = useStore((s) => s.loadGoals);
   const loadMemories = useStore((s) => s.loadMemories);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -71,7 +72,7 @@ export default function App() {
           <KnowledgePage />
         )}
         {(view === 'todo' || view === 'briefing') && <SmartInput />}
-        {editorOpen && <TaskEditor />}
+        {editorOpen && <TaskEditor key={editorTask?.id ?? 'new'} />}
         {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
         <Celebration />
       </main>

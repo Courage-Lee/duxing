@@ -362,8 +362,15 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   updateGoalStage: async (stageId, patch) => {
+    // 乐观更新：本地先合并，保证输入框跟手；再异步落库。
+    // 不再 loadGoals() 全量重拉——否则快速输入时并发重拉会用旧快照覆盖已输入的内容。
+    set({
+      goals: get().goals.map((g) => ({
+        ...g,
+        stages: g.stages.map((s) => (s.id === stageId ? { ...s, ...patch } : s)),
+      })),
+    });
     await window.api.updateGoalStage(stageId, patch);
-    await get().loadGoals();
   },
 
   deleteGoalStage: async (stageId) => {
