@@ -112,6 +112,14 @@ export interface AskResult {
   usedAI: boolean; // 是否真正调用了 AI（false 表示离线降级为匹配列表）
 }
 
+/** 混合问答结果：知识库优先，未命中则 AI 通用兜底 */
+export interface HybridResult {
+  answer: string;
+  sources: Note[];
+  grounded: boolean; // true=源自你的笔记；false=AI 通用知识（非来自笔记）
+  usedAI: boolean;
+}
+
 // ---------- 统一智能输入 ----------
 export type SmartIntentType = 'todo' | 'note' | 'query';
 export interface SmartTodoIntent {

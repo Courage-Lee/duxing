@@ -1,4 +1,4 @@
-import { Task, TaskDraft, Settings, ExportFormat, ParseResult, TestResult, Note, AskResult, SearchHit, SmartResult, Briefing, BriefingText, SubTask, Goal, GoalDraft, GoalStage, GoalStageDraft, Memory, MemoryDraft, PlanStage } from '../../shared/types';
+import { Task, TaskDraft, Settings, ExportFormat, ParseResult, TestResult, Note, AskResult, HybridResult, SearchHit, SmartResult, Briefing, BriefingText, SubTask, Goal, GoalDraft, GoalStage, GoalStageDraft, Memory, MemoryDraft, PlanStage } from '../../shared/types';
 
 declare global {
   interface Window {
@@ -33,6 +33,7 @@ declare global {
       askNotes: (q: string, images?: string[]) => Promise<AskResult>;
       smartProcess: (text: string, images?: string[], forcedIntent?: 'todo' | 'note' | 'query') => Promise<SmartResult>;
       chatTurn: (userText: string, history: ChatMessage[], images?: string[]) => Promise<string>;
+      askHybrid: (userText: string, history: ChatMessage[], images?: string[]) => Promise<HybridResult>;
       // 目标路线图
       listGoals: () => Promise<Goal[]>;
       getGoal: (id: string) => Promise<Goal | null>;

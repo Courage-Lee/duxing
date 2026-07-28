@@ -13,6 +13,7 @@ interface ChatMessage {
   text: string;
   images?: string[];
   sources?: Note[];
+  grounded?: boolean; // true=来自你的笔记；false/undefined=AI 通用回答（非来自笔记）
   pending?: boolean;
   error?: boolean;
 }
@@ -192,12 +193,13 @@ export default function ChatHome() {
 
     try {
       if (mode === 'chat') {
-        // 多轮对话：把已有历史（文本）一并传给后端，支持追问与上下文指代
+        // 混合问答：先查知识库，命中用笔记答（标来源）；未命中自动用 AI 通用知识兜底。
+        // 历史一并传入，支持连续追问与指代消解。
         const history = messages
           .filter((m) => m.text && !m.pending)
           .map((m) => ({ role: m.role, content: m.text, images: m.images }));
-        const answer = await window.api.chatTurn(content, history, imgs);
-        updateMsg(aId, { pending: false, text: answer });
+        const r = await window.api.askHybrid(content, history, imgs);
+        updateMsg(aId, { pending: false, text: r.answer, sources: r.sources, grounded: r.grounded });
       } else if (mode === 'query') {
         const r = await window.api.askNotes(content, imgs);
         updateMsg(aId, { pending: false, text: r.answer, sources: r.sources });
@@ -261,7 +263,7 @@ export default function ChatHome() {
         {messages.length === 0 ? (
           <div className="chat-empty">
             <div className="chat-greet">你好，我是笃行</div>
-            <div className="chat-sub">本地优先的 AI 助手。直接问我任何问题——我可以多轮对话、解答、给建议；也能帮你记笔记或安排待办。</div>
+            <div className="chat-sub">本地优先的 AI 助手。直接问我任何问题——我会先查你记过的知识库，命中就用你的笔记答（带出处）；没记过就用自己的通用知识补上。也能帮你记笔记或安排待办。</div>
             <div className="chat-suggest">
               {SUGGESTIONS.map((s, i) => (
                 <button key={i} className="suggest-chip" onClick={() => applySuggestion(s)}>
@@ -295,6 +297,9 @@ export default function ChatHome() {
                       </span>
                     ))}
                   </div>
+                )}
+                {!m.pending && !m.error && m.grounded === false && (
+                  <div className="msg-ungrounded">AI 通用回答 · 非来自你的笔记</div>
                 )}
               </div>
             </div>
@@ -389,7 +394,7 @@ export default function ChatHome() {
         <div className="chat-hint">
           当前模式：<b>{modeLabel}</b>
           {mode === 'chat'
-            ? '（自由对话，支持连续追问）'
+            ? '（先查知识库，未命中再用 AI 通用回答）'
             : mode === 'auto' && '（自动识别待办 / 知识 / 提问）'} · 输入 / 可切换功能
         </div>
       </div>

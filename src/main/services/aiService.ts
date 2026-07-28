@@ -347,19 +347,13 @@ const CHAT_SYSTEM =
   '你会结合对话历史理解用户的追问和补充——如果用户用了"上面/刚才/它/这个"等指代，请根据上下文推断指代对象。' +
   '如果用户只是在询问或讨论，就直接解答；只有当用户明确要求"记下来/建一个待办"时才提示其使用对应功能，不要擅自创建数据。';
 
-/**
- * 通用对话：基于完整历史做多轮问答，支持图片（多模态）。
- * 永不抛出未捕获异常——无 Key / 仅本地模式 / 网络错误时都返回明确的文字提示，保证前端一定有回应。
- */
-export async function chatTurn(
+/** 内部：基于历史做一轮通用问答（多模态 + 多轮），返回纯文本，永不抛异常。 */
+async function generalAnswer(
   userText: string,
   history: ChatMessage[],
-  images?: string[]
+  images: string[] | undefined,
+  settings: { baseUrl?: string; apiKey?: string; model?: string }
 ): Promise<string> {
-  const settings = loadSettings();
-  if (settings.localOnly || !settings.apiKey) {
-    return '当前是「仅本地模式」或未配置 AI 的 API Key，暂时无法自由对话。请到「设置」中填写 API Key 与 Base URL 后重试；也可以切换到「提问」模式查询已记录的知识库。';
-  }
   const fetchFn = (globalThis as any).fetch as typeof fetch;
   const hasImages = !!images?.length;
   const userContent: any = hasImages
@@ -406,6 +400,79 @@ export async function chatTurn(
     const msg = e instanceof Error ? e.message : String(e);
     return `（对话出错：${msg}）`;
   }
+}
+
+/**
+ * 通用对话（对外）：基于完整历史做多轮自由问答，支持图片（多模态）。
+ * 永不抛出未捕获异常——无 Key / 仅本地模式 / 网络错误时都返回明确的文字提示。
+ */
+export async function chatTurn(
+  userText: string,
+  history: ChatMessage[],
+  images?: string[]
+): Promise<string> {
+  const settings = loadSettings();
+  if (settings.localOnly || !settings.apiKey) {
+    return '当前是「仅本地模式」或未配置 AI 的 API Key，暂时无法自由对话。请到「设置」中填写 API Key 与 Base URL 后重试；也可以切换到「提问」模式查询已记录的知识库。';
+  }
+  return generalAnswer(userText, history, images, settings);
+}
+
+// ---------- 混合问答：知识库优先 + AI 通用兜底 ----------
+export interface HybridResult {
+  answer: string;
+  sources: Note[];
+  grounded: boolean; // true=源自你的笔记；false=AI 通用知识（非来自笔记）
+  usedAI: boolean;
+}
+
+/**
+ * 混合问答：先查本地知识库，命中则用笔记作答（标注来源）；
+ * 未命中或笔记作答失败时，自动回退到 AI 通用问答（保留多轮上下文）。
+ * 无 Key / 仅本地模式时降级为「列出相关笔记」或明确提示，保证一定有回应。
+ */
+export async function askHybrid(
+  userText: string,
+  history: ChatMessage[],
+  images?: string[]
+): Promise<HybridResult> {
+  const settings = loadSettings();
+  // 延迟 require 避免与 notes.ts 形成静态循环依赖（notes 又 import 本模块）
+  const { searchNotes } = require('../db/notes');
+  let hits: { note: Note }[] = [];
+  try {
+    hits = searchNotes(userText, 6);
+  } catch {
+    hits = [];
+  }
+  const sources: Note[] = hits.map((h) => h.note);
+
+  // 知识库命中 + 可用 AI → 优先基于笔记作答
+  if (sources.length > 0 && !settings.localOnly && settings.apiKey) {
+    try {
+      const answer = await answerWithNotes(userText, sources, images);
+      return { answer, sources, grounded: true, usedAI: true };
+    } catch {
+      // 笔记作答失败（如模型不支持图片），继续走通用兜底
+    }
+  }
+
+  // 兜底：通用 AI（带多轮历史）
+  if (settings.localOnly || !settings.apiKey) {
+    if (sources.length > 0) {
+      const list = sources.map((n) => `• ${n.title}`).join('\n');
+      return { answer: `（未连接 AI，以下是相关知识库笔记）\n${list}`, sources, grounded: true, usedAI: false };
+    }
+    return {
+      answer: '当前是「仅本地模式」或未配置 AI 的 API Key，暂时无法回答。请到「设置」中填写 API Key 与 Base URL 后重试。',
+      sources: [],
+      grounded: false,
+      usedAI: false,
+    };
+  }
+
+  const answer = await generalAnswer(userText, history, images, settings);
+  return { answer, sources: [], grounded: false, usedAI: true };
 }
 
 // ---------- 统一智能输入：自动分辨 todo / note / query ----------

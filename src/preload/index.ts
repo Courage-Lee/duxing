@@ -13,6 +13,7 @@ import {
   TestResult,
   Note,
   AskResult,
+  HybridResult,
   ChatMessage,
   SearchHit,
   SmartResult,
@@ -48,6 +49,8 @@ const api = {
     ipcRenderer.invoke('ai:smart', text, images, forcedIntent),
   chatTurn: (userText: string, history: ChatMessage[], images?: string[]): Promise<string> =>
     ipcRenderer.invoke('ai:chat', userText, history, images),
+  askHybrid: (userText: string, history: ChatMessage[], images?: string[]): Promise<HybridResult> =>
+    ipcRenderer.invoke('ai:hybrid', userText, history, images),
   getSettings: (): Promise<Settings> => ipcRenderer.invoke('settings:get'),
   saveSettings: (s: Partial<Settings>): Promise<Settings> => ipcRenderer.invoke('settings:save', s),
   exportData: (format: ExportFormat): Promise<string> => ipcRenderer.invoke('data:export', format),

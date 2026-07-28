@@ -1842,6 +1842,19 @@ label {
 .msg-sources .tag {
   cursor: pointer;
 }
+.msg-ungrounded {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.8;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.msg-ungrounded::before {
+  content: '·';
+  font-weight: 700;
+}
 
 /* 输入区 */
 .chat-input {
