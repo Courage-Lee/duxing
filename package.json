@@ -4,11 +4,14 @@
   "private": false,
   "description": "笃行 · 本地优先的 AI 待办桌面应用（离线可用 / 自然语言建任务 / 智能排程）",
   "license": "MIT",
-  "author": "",
-  "homepage": "",
+  "author": "Courage-Lee",
+  "homepage": "https://github.com/Courage-Lee/duxing",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/Courage-Lee/duxing.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Courage-Lee/duxing/issues"
   },
   "main": "out/main/index.js",
   "scripts": {
