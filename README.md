@@ -4,6 +4,10 @@
 
 「笃行」取「知行合一、踏实执行」之意——它不追求花哨，而是做一个你每天真的愿意打开用的效率工具。
 
+<p align="center">
+  <img src="assets/social-preview.png" alt="笃行 · 本地优先的 AI 待办桌面应用" width="100%">
+</p>
+
 ---
 
 ## 功能特性
