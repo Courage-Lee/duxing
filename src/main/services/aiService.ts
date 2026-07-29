@@ -389,7 +389,7 @@ export interface HybridResult {
  */
 export async function askHybrid(
   userText: string,
-  history: ChatMessage[],
+  history?: ChatMessage[],
   images?: string[]
 ): Promise<HybridResult> {
   const settings = loadSettings();
@@ -425,7 +425,7 @@ export async function askHybrid(
     };
   }
 
-  const answer = await generalAnswer(userText, history, images, settings);
+  const answer = await generalAnswer(userText, history || [], images, settings);
   return { answer, sources: [], grounded: false, usedAI: true };
 }
 
@@ -543,9 +543,9 @@ async function buildForced(
     const title = firstLine.slice(0, 30) || text.slice(0, 30);
     return attachImages({ type: 'note', title, content: text }, images);
   }
-  // query
-  const r = await askLocal(text, images);
-  return attachImages({ type: 'query', question: text, answer: r.answer, sources: r.sources }, images);
+  // query：走混合问答，命中笔记则标来源，未命中用 AI 通用知识兜底
+  const r = await askHybrid(text, [], images);
+  return attachImages({ type: 'query', question: text, answer: r.answer, sources: r.sources, grounded: r.grounded }, images);
 }
 
 /** 统一入口：一句话自动分辨 待办/知识/提问，多意图可同时返回。支持附带图片与强制类型。 */
@@ -603,8 +603,8 @@ export async function smartProcess(
         );
       } else if (it.type === 'query') {
         const q = String(it.question || text);
-        const r = await askLocal(q, images);
-        intents.push(attachImages({ type: 'query', question: q, answer: r.answer, sources: r.sources }, images));
+        const r = await askHybrid(q, [], images);
+        intents.push(attachImages({ type: 'query', question: q, answer: r.answer, sources: r.sources, grounded: r.grounded }, images));
       }
     }
     if (intents.length === 0) intents.push(attachImages({ type: 'todo', draft: localParse(text) }, images));

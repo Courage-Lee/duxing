@@ -211,6 +211,7 @@ export default function ChatHome() {
         const res = await window.api.smartProcess(content, imgs);
         const lines: string[] = [];
         let sources: Note[] = [];
+        let grounded = true; // 只要有一个 query 走了 AI 兜底，就标为 false
         for (const it of res.intents) {
           if (it.type === 'todo') {
             await createTask(it.draft, 'nl');
@@ -221,6 +222,7 @@ export default function ChatHome() {
           } else if (it.type === 'query') {
             lines.push(it.answer || '（无回答）');
             if (it.sources) sources = [...sources, ...it.sources];
+            if (it.grounded === false) grounded = false;
           }
         }
         await refresh();
@@ -228,6 +230,7 @@ export default function ChatHome() {
           pending: false,
           text: lines.length ? lines.join('\n') : '已处理',
           sources: sources.length ? sources : undefined,
+          grounded,
         });
       }
     } catch (e) {

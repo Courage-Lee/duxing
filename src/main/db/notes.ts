@@ -82,33 +82,77 @@ function tokenize(q: string): string[] {
     .filter((t) => t.length > 0);
 }
 
+const STOP_WORDS = new Set([
+  '的', '了', '是', '在', '和', '与', '或', '有', '我', '你', '他', '她', '它', '们', '这', '那', '哪', '什么', '怎么',
+  '为什么', '为何', '谁', '多少', '吗', '呢', '吧', '啊', '哦', '嗯', '的', '地', '得', '着', '过', '被', '把', '给',
+]);
+
+function isStopWord(t: string): boolean {
+  return STOP_WORDS.has(t);
+}
+
+function hasCJK(t: string): boolean {
+  return /[\u4e00-\u9fa5]/.test(t);
+}
+
+function ngrams(text: string, n: number): string[] {
+  const chars = Array.from(text);
+  const grams: string[] = [];
+  for (let i = 0; i <= chars.length - n; i++) {
+    grams.push(chars.slice(i, i + n).join(''));
+  }
+  return grams;
+}
+
+interface SearchTerm {
+  term: string;
+  weight: number;
+}
+
+/** 把查询扩展成不同粒度的检索项：完整词权重高，中文长词补充 2-gram/3-gram 提高召回 */
+function expandQueryTerms(query: string): SearchTerm[] {
+  const rawTokens = tokenize(query);
+  const terms: SearchTerm[] = [];
+  for (const t of rawTokens) {
+    const lower = t.toLowerCase();
+    if (isStopWord(lower)) continue;
+    terms.push({ term: lower, weight: t.length >= 4 ? 4 : 3 }); // 完整词权重高
+    if (hasCJK(t) && t.length >= 4) {
+      // 中文 3-gram 权重较高，2-gram 权重较低；避免过短 noise
+      for (const g of ngrams(t, 3)) terms.push({ term: g.toLowerCase(), weight: 1.8 });
+      if (t.length >= 6) {
+        for (const g of ngrams(t, 2)) terms.push({ term: g.toLowerCase(), weight: 0.9 });
+      }
+    }
+  }
+  return terms;
+}
+
 export interface SearchHit {
   note: Note;
   snippet: string;
 }
 
-/** 关键词检索 + 相关性排序（命中 token 数越多越靠前） */
+/** 关键词检索 + 相关性排序（命中 token 数越多、完整匹配越多越靠前） */
 export function searchNotes(query: string, limit = 8): SearchHit[] {
-  const tokens = tokenize(query);
-  if (tokens.length === 0) return [];
-  const lowerTokens = tokens.map((t) => t.toLowerCase());
+  const terms = expandQueryTerms(query);
+  if (terms.length === 0) return [];
   const all = (db.prepare('SELECT * FROM notes').all() as any[]).map(rowToNote);
   const scored = all
     .map((note) => {
       const titleLower = note.title.toLowerCase();
       const contentLower = note.content.toLowerCase();
-      const full = titleLower + '\n' + contentLower;
       let score = 0;
       let firstHit = -1;
-      for (const tk of lowerTokens) {
-        const inTitle = titleLower.indexOf(tk);
-        const inContent = contentLower.indexOf(tk);
+      for (const { term, weight } of terms) {
+        const inTitle = titleLower.indexOf(term);
+        const inContent = contentLower.indexOf(term);
         if (inTitle >= 0) {
-          score += 3; // 标题命中权重更高
-          if (firstHit < 0) firstHit = note.title.indexOf(tk);
+          score += weight * 3; // 标题命中权重更高
+          if (firstHit < 0) firstHit = titleLower.indexOf(term);
         } else if (inContent >= 0) {
-          score += 1;
-          if (firstHit < 0) firstHit = note.content.indexOf(tk);
+          score += weight;
+          if (firstHit < 0) firstHit = contentLower.indexOf(term);
         }
       }
       return { note, score, firstHit };
@@ -158,8 +202,9 @@ export async function answerWithNotes(question: string, notes: Note[], images?: 
           content:
             '你是个人知识库问答助手。只能依据下面提供的【笔记】内容和用户上传的图片回答用户问题，' +
             '不要编造笔记中不存在的信息。如果笔记或图片中没有相关信息，请明确说"我的笔记里没有这方面的记录"。' +
-            '回答要简洁、直接。当引用某条笔记的内容时，请在该句末尾标注来源，格式如「（出自《笔记标题》）」，' +
-            '以便用户追溯出处。',
+            '回答要简洁、直接。当笔记内容是表格、列表或任务分配时，请根据用户提到的关键词直接定位到对应行并给出答案；' +
+            '只有确实找不到对应项时才请用户补充细节。' +
+            '当引用某条笔记的内容时，请在该句末尾标注来源，格式如「（出自《笔记标题》）」，以便用户追溯出处。',
         },
         {
           role: 'user',

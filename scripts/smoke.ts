@@ -1,6 +1,7 @@
 import * as tasksDb from '../src/main/db/tasks';
 import * as goalsDb from '../src/main/db/goals';
 import * as memoriesDb from '../src/main/db/memories';
+import * as notesDb from '../src/main/db/notes';
 
 let failed = 0;
 function assert(cond: any, msg: string) {
@@ -11,6 +12,18 @@ function assert(cond: any, msg: string) {
     failed++;
   }
 }
+
+// ---------- 0. 笔记：中文长词/子串召回 ----------
+notesDb.createNote(
+  '一表通表名中文校验任务分配表',
+  '股东或关联方信息表：张三\n资产负债表：李四\n利润表：王五'
+);
+const noteHits = notesDb.searchNotes('一表通中股东或关联方信息表 谁负责的', 5);
+assert(noteHits.length >= 1, '中文长词查询应召回包含子串的笔记');
+assert(
+  noteHits.some((h) => h.note.title === '一表通表名中文校验任务分配表'),
+  '应召回「一表通表名中文校验任务分配表」'
+);
 
 // ---------- 1. 任务：重要程度 + 日历拖拽改期 ----------
 const due = Date.now() + 86400000;

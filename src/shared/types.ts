@@ -137,6 +137,7 @@ export interface SmartQueryIntent {
   question: string;
   answer?: string;
   sources?: Note[];
+  grounded?: boolean; // true=来自笔记；false=AI 通用兜底
   images?: string[];
 }
 export type SmartIntent = SmartTodoIntent | SmartNoteIntent | SmartQueryIntent;

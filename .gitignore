@@ -19,6 +19,9 @@ release-*/
 # electron-vite 运行期生成的临时配置副本
 electron.vite.config.*.mjs
 
+# 测试脚本打包产物
+scripts/smoke.cjs
+
 # ── 系统 ──
 .DS_Store
 Thumbs.db
