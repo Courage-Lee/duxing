@@ -8,6 +8,7 @@
 import { loadSettings } from '../db/settings';
 import { Task, TaskDraft, Priority, ParseResult, Note, SmartResult, SmartIntent, Briefing, BriefingText, Recurrence, SubTask, PlanStage, Memory, MemoryType, ChatMessage } from '../../shared/types';
 import { getBriefing } from '../db/briefing';
+import { searchNotes, askQuestion, answerWithNotes } from '../db/notes';
 
 const CATEGORY_HINT = '工作/生活/学习/健康/其他';
 const TIMEZONE = 'Asia/Shanghai';
@@ -294,51 +295,6 @@ export function recommendOrder(): Task[] {
     .map((x) => x.task);
 }
 
-function buildQuestionContext(notes: Note[], question: string): string {
-  const context = notes
-    .map((n, i) => `【笔记${i + 1}】标题：${n.title}\n内容：${n.content}`)
-    .join('\n\n');
-  return `以下是相关的笔记内容：\n\n${context}\n\n用户问题：${question}`;
-}
-
-/** 知识库问答：仅基于提供的笔记内容回答，不编造。支持附带图片（多模态）。 */
-export async function answerWithNotes(question: string, notes: Note[], images?: string[]): Promise<string> {
-  const settings = loadSettings();
-  if (settings.localOnly || !settings.apiKey) {
-    throw new Error('NO_AI');
-  }
-  const fetchFn = (globalThis as any).fetch as typeof fetch;
-  const textContext = buildQuestionContext(notes, question);
-  const userContent: any = images?.length
-    ? [{ type: 'text', text: textContext }, ...images.map((url) => ({ type: 'image_url', image_url: { url } }))]
-    : textContext;
-  const resp = await fetchFn(`${settings.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
-    body: JSON.stringify({
-      model: settings.model || 'deepseek-chat',
-      temperature: 0,
-      messages: [
-        {
-          role: 'system',
-          content:
-            '你是个人知识库问答助手。只能依据下面提供的【笔记】内容和用户上传的图片回答用户问题，' +
-            '不要编造笔记中不存在的信息。如果笔记或图片中没有相关信息，请明确说"我的笔记里没有这方面的记录"。' +
-            '回答要简洁、直接。当引用某条笔记的内容时，请在该句末尾标注来源，格式如「（出自《笔记标题》）」，' +
-            '以便用户追溯出处。',
-        },
-        {
-          role: 'user',
-          content: userContent,
-        },
-      ],
-    }),
-  });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const data = await resp.json();
-  return data?.choices?.[0]?.message?.content?.trim() || '（AI 返回为空）';
-}
-
 // ---------- 通用对话：多轮自由问答 ----------
 const CHAT_SYSTEM =
   '你是「笃行」，一个本地优先的个人 AI 助手。你可以回答各类问题、帮助解决问题、提供建议与方案，' +
@@ -437,8 +393,6 @@ export async function askHybrid(
   images?: string[]
 ): Promise<HybridResult> {
   const settings = loadSettings();
-  // 延迟 require 避免与 notes.ts 形成静态循环依赖（notes 又 import 本模块）
-  const { searchNotes } = require('../db/notes');
   let hits: { note: Note }[] = [];
   try {
     hits = searchNotes(userText, 6);
@@ -543,7 +497,6 @@ async function callAISmart(text: string, images?: string[]): Promise<any[]> {
 }
 
 async function askLocal(q: string, images?: string[]) {
-  const { askQuestion } = require('../db/notes');
   return askQuestion(q, images);
 }
 

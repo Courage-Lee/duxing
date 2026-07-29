@@ -5,7 +5,7 @@
 
 import db from './index';
 import { Note, AskResult } from '../../shared/types';
-import { answerWithNotes } from '../services/aiService';
+import { loadSettings } from '../db/settings';
 
 function rowToNote(r: any): Note {
   let images: string[] | undefined;
@@ -126,6 +126,51 @@ function makeSnippet(content: string, idx: number): string {
   const start = Math.max(0, idx - 20);
   const end = Math.min(content.length, idx + 60);
   return (start > 0 ? '…' : '') + content.slice(start, end) + (end < content.length ? '…' : '');
+}
+
+function buildQuestionContext(notes: Note[], question: string): string {
+  const context = notes
+    .map((n, i) => `【笔记${i + 1}】标题：${n.title}\n内容：${n.content}`)
+    .join('\n\n');
+  return `以下是相关的笔记内容：\n\n${context}\n\n用户问题：${question}`;
+}
+
+/** 知识库问答：仅基于提供的笔记内容回答，不编造。支持附带图片（多模态）。 */
+export async function answerWithNotes(question: string, notes: Note[], images?: string[]): Promise<string> {
+  const settings = loadSettings();
+  if (settings.localOnly || !settings.apiKey) {
+    throw new Error('NO_AI');
+  }
+  const fetchFn = (globalThis as any).fetch as typeof fetch;
+  const textContext = buildQuestionContext(notes, question);
+  const userContent: any = images?.length
+    ? [{ type: 'text', text: textContext }, ...images.map((url) => ({ type: 'image_url', image_url: { url } }))]
+    : textContext;
+  const resp = await fetchFn(`${settings.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
+    body: JSON.stringify({
+      model: settings.model || 'deepseek-chat',
+      temperature: 0,
+      messages: [
+        {
+          role: 'system',
+          content:
+            '你是个人知识库问答助手。只能依据下面提供的【笔记】内容和用户上传的图片回答用户问题，' +
+            '不要编造笔记中不存在的信息。如果笔记或图片中没有相关信息，请明确说"我的笔记里没有这方面的记录"。' +
+            '回答要简洁、直接。当引用某条笔记的内容时，请在该句末尾标注来源，格式如「（出自《笔记标题》）」，' +
+            '以便用户追溯出处。',
+        },
+        {
+          role: 'user',
+          content: userContent,
+        },
+      ],
+    }),
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  return data?.choices?.[0]?.message?.content?.trim() || '（AI 返回为空）';
 }
 
 /** 知识库问答：先检索相关笔记，再让 AI 基于笔记回答；无 AI 时降级为返回匹配列表。支持图片。 */
