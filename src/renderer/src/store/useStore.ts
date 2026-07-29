@@ -10,6 +10,39 @@ type Theme = 'light' | 'dark' | 'system';
 type View = 'home' | 'todo' | 'kb' | 'briefing' | 'calendar' | 'stats' | 'quadrant' | 'goals' | 'memory';
 type PriorityFilter = 1 | 2 | 3 | 'all';
 
+// 首页对话消息（持久化到 localStorage，切视图/重启不丢）
+export type ChatMode = 'chat' | 'auto' | 'todo' | 'note' | 'query';
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  images?: string[];
+  sources?: Note[];
+  grounded?: boolean; // true=来自你的笔记；false/undefined=AI 通用回答（非来自笔记）
+  pending?: boolean;
+  error?: boolean;
+}
+
+const CHAT_KEY = 'duxing.chat.v1';
+function loadChat(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_KEY);
+    return raw ? (JSON.parse(raw) as ChatMessage[]) : [];
+  } catch {
+    return [];
+  }
+}
+function persistChat(ms: ChatMessage[]) {
+  try {
+    // localStorage 有容量上限，最多保留最近 100 条（含图片的 base64 可能较大）
+    const trimmed = ms.slice(-100);
+    localStorage.setItem(CHAT_KEY, JSON.stringify(trimmed));
+  } catch {
+    /* 配额超限时忽略，保留内存态即可 */
+  }
+}
+
 interface Store {
   tasks: Task[];
   settings: Settings;
@@ -104,6 +137,15 @@ interface Store {
   deleteMemory: (id: string) => Promise<void>;
   extractMemories: (text: string, source?: MemoryType extends never ? never : 'note' | 'task' | 'manual' | 'conversation') => Promise<void>;
   searchMemories: (q: string, embedding?: number[] | null) => Promise<void>;
+
+  // 首页对话历史（持久化）
+  chatMessages: ChatMessage[];
+  chatMode: ChatMode;
+  pushChatMessages: (ms: ChatMessage[]) => void;
+  updateChatMessage: (id: string, patch: Partial<ChatMessage>) => void;
+  setChatMessages: (ms: ChatMessage[]) => void;
+  setChatMode: (m: ChatMode) => void;
+  clearChat: () => void;
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -134,6 +176,29 @@ export const useStore = create<Store>((set, get) => ({
   selectedGoalId: null,
 
   memories: [],
+
+  chatMessages: loadChat(),
+  chatMode: 'chat',
+
+  pushChatMessages: (ms) => {
+    const next = [...get().chatMessages, ...ms];
+    set({ chatMessages: next });
+    persistChat(next);
+  },
+  updateChatMessage: (id, patch) => {
+    const next = get().chatMessages.map((m) => (m.id === id ? { ...m, ...patch } : m));
+    set({ chatMessages: next });
+    persistChat(next);
+  },
+  setChatMessages: (ms) => {
+    set({ chatMessages: ms });
+    persistChat(ms);
+  },
+  setChatMode: (m) => set({ chatMode: m }),
+  clearChat: () => {
+    set({ chatMessages: [] });
+    persistChat([]);
+  },
 
   init: async () => {
     const theme = (localStorage.getItem('theme') as Theme) || 'system';

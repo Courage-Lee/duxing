@@ -1,22 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
+import type { ChatMessage, ChatMode } from '../store/useStore';
 import { Note } from '../../../shared/types';
 
 /** 对话式首页：ChatGPT 风格。顶部模块选择 + 底部输入框（支持 / 命令与图片），
  *  提问直接走知识库问答、待办/知识分别落库，统一以气泡呈现结果。 */
 
-type Mode = 'chat' | 'auto' | 'todo' | 'note' | 'query';
-
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  text: string;
-  images?: string[];
-  sources?: Note[];
-  grounded?: boolean; // true=来自你的笔记；false/undefined=AI 通用回答（非来自笔记）
-  pending?: boolean;
-  error?: boolean;
-}
+type Mode = ChatMode;
 
 interface Cmd {
   key: Mode;
@@ -63,10 +53,14 @@ function readImageFiles(files: FileList | null): Promise<string[]> {
 }
 
 export default function ChatHome() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messages = useStore((s) => s.chatMessages);
+  const mode = useStore((s) => s.chatMode);
+  const pushChatMessages = useStore((s) => s.pushChatMessages);
+  const updateChatMessage = useStore((s) => s.updateChatMessage);
+  const setMode = useStore((s) => s.setChatMode);
+  const clearChat = useStore((s) => s.clearChat);
   const [text, setText] = useState('');
   const [images, setImages] = useState<string[]>([]);
-  const [mode, setMode] = useState<Mode>('chat');
   const [loading, setLoading] = useState(false);
 
   const [slashOpen, setSlashOpen] = useState(false);
@@ -96,8 +90,7 @@ export default function ChatHome() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const updateMsg = (id: string, patch: Partial<ChatMessage>) =>
-    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  const updateMsg = (id: string, patch: Partial<ChatMessage>) => updateChatMessage(id, patch);
 
   const slashFiltered = slashQuery
     ? MODES.filter((c) => c.label.includes(slashQuery) || c.key.includes(slashQuery))
@@ -183,7 +176,7 @@ export default function ChatHome() {
     const imgs = images.length ? images : undefined;
     const userMsg: ChatMessage = { id: uid(), role: 'user', text: content, images: imgs };
     const aId = uid();
-    setMessages((prev) => [...prev, userMsg, { id: aId, role: 'assistant', text: '', pending: true }]);
+    pushChatMessages([userMsg, { id: aId, role: 'assistant', text: '', pending: true }]);
     setText('');
     setImages([]);
     setSlashOpen(false);
@@ -309,17 +302,30 @@ export default function ChatHome() {
       </div>
 
       <div className="chat-input">
-        <div className="mode-chips">
-          {MODES.map((m) => (
+        <div className="mode-chips-row">
+          <div className="mode-chips">
+            {MODES.map((m) => (
+              <button
+                key={m.key}
+                className={mode === m.key ? 'chip active' : 'chip'}
+                title={m.desc}
+                onClick={() => pickMode(m.key)}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          {messages.length > 0 && (
             <button
-              key={m.key}
-              className={mode === m.key ? 'chip active' : 'chip'}
-              title={m.desc}
-              onClick={() => pickMode(m.key)}
+              className="chip clear"
+              title="清空对话记录"
+              onClick={() => {
+                if (window.confirm('确定清空当前对话记录？此操作不可撤销。')) clearChat();
+              }}
             >
-              {m.label}
+              清空
             </button>
-          ))}
+          )}
         </div>
 
         {slashOpen && slashFiltered.length > 0 && (
