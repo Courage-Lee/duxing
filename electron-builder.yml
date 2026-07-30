@@ -5,6 +5,9 @@ directories:
   buildResources: assets
 # native 模块（better-sqlite3）由单独的 electron-rebuild -f 重建，跳过 electron-builder 自带 rebuild 以免沙箱内崩溃
 npmRebuild: false
+# 构建沙箱对 GitHub release-assets 的 TLS 偶发阻断；关闭 electron 校验和下载（zip 已缓存），避免 SHASUMS 请求卡死
+electronDownload:
+  isVerifyChecksum: false
 files:
   - out/**/*
   - package.json
@@ -23,6 +26,8 @@ win:
     - nsis
     - portable
   icon: assets/icon.ico
+  # 构建沙箱无法拉取 winCodeSign（签名工具），关闭可执行文件签名以彻底跳过下载；产物无 Authenticode 签名
+  signExecutable: false
 nsis:
   oneClick: false
   perMachine: false
