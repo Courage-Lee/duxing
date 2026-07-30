@@ -69,7 +69,6 @@ export default function ChatHome() {
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const setView = useStore((s) => s.setView);
@@ -87,7 +86,11 @@ export default function ChatHome() {
   }, [text]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = scrollRef.current;
+    if (!el) return;
+    // 仅在用户已靠近底部时才自动滚动到最新，避免正在翻阅历史时被顶下去
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+    if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
   const updateMsg = (id: string, patch: Partial<ChatMessage>) => updateChatMessage(id, patch);
@@ -301,7 +304,6 @@ export default function ChatHome() {
             </div>
           ))
         )}
-        <div ref={endRef} />
       </div>
 
       <div className="chat-input">
