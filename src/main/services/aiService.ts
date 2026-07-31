@@ -402,13 +402,26 @@ export async function askHybrid(
   const sources: Note[] = hits.map((h) => h.note);
 
   // 知识库命中 + 可用 AI → 优先基于笔记作答
+  let noteAnswer: string | null = null;
   if (sources.length > 0 && !settings.localOnly && settings.apiKey) {
     try {
-      const answer = await answerWithNotes(userText, sources, images);
-      return { answer, sources, grounded: true, usedAI: true };
+      noteAnswer = await answerWithNotes(userText, sources, images);
     } catch {
       // 笔记作答失败（如模型不支持图片），继续走通用兜底
     }
+  }
+
+  // 笔记作答明确“无相关信息”时，视为未命中，回退到 AI 通用问答兜底
+  if (
+    noteAnswer &&
+    /我的笔记里没有这方面的记录|没有相关(信息|内容|记录)|未(包含|检索到|找到)相关/.test(noteAnswer)
+  ) {
+    noteAnswer = null;
+  }
+
+  // 笔记成功作答（且确实包含相关信息）→ 直接返回并标注来源
+  if (noteAnswer) {
+    return { answer: noteAnswer, sources, grounded: true, usedAI: true };
   }
 
   // 兜底：通用 AI（带多轮历史）
