@@ -522,6 +522,124 @@ label {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ── Markdown 富文本渲染（仅 AI 回复 .md-body） ── */
+.md-body {
+  white-space: normal;
+  line-height: 1.7;
+}
+.md-body > *:first-child { margin-top: 0; }
+.md-body > *:last-child { margin-bottom: 0; }
+
+.md-body p { margin: 4px 0; }
+.md-body p + p { margin-top: 8px; }
+
+/* 标题 */
+.md-body h1, .md-body h2, .md-body h3,
+.md-body h4, .md-body h5, .md-body h6 {
+  margin: 12px 0 6px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+.md-body h1 { font-size: 1.25em; }
+.md-body h2 { font-size: 1.15em; }
+.md-body h3 { font-size: 1.08em; }
+
+/* 加粗 / 斜体 */
+.md-body strong { font-weight: 600; color: var(--text); }
+.md-body em { font-style: italic; }
+
+/* 行内代码 */
+.md-body code {
+  background: rgba(0,0,0,.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'Cascadia Code','Fira Code',Consolas,'Courier New',monospace;
+  font-size: .88em;
+  color: #c7254e;
+}
+[data-theme='dark'] .md-body code {
+  background: rgba(255,255,255,.08);
+  color: #f48fb1;
+}
+
+/* 代码块 */
+.md-body pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: #f6f8fa;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+}
+[data-theme='dark'] .md-body pre {
+  background: #1e1e2e;
+  border-color: #333;
+}
+.md-body pre code {
+  background: none;
+  padding: 0;
+  font-size: .85em;
+  color: inherit;
+  line-height: 1.5;
+}
+
+/* 列表 */
+.md-body ul, .md-body ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.md-body li {
+  margin: 3px 0;
+  line-height: 1.6;
+}
+.md-body li > ul, .md-body li > ol { margin: 2px 0; }
+
+/* 引用块 */
+.md-body blockquote {
+  margin: 8px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--accent);
+  background: rgba(0,0,0,.02);
+  border-radius: 0 6px 6px 0;
+  color: var(--muted);
+}
+[data-theme='dark'] .md-body blockquote {
+  background: rgba(255,255,255,.03);
+}
+
+/* 分隔线 */
+.md-body hr {
+  margin: 10px 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+/* 表格 */
+.md-body table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: .92em;
+}
+.md-body th, .md-body td {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.md-body th {
+  background: rgba(0,0,0,.03);
+  font-weight: 600;
+}
+[data-theme='dark'] .md-body th { background: rgba(255,255,255,.04); }
+
+/* 链接 */
+.md-body a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .bubble.user {
   align-self: flex-end;
   background: var(--accent);

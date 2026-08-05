@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useStore } from '../store/useStore';
 import type { ChatMessage, ChatMode } from '../store/useStore';
 import { Note } from '../../../shared/types';
@@ -284,6 +285,10 @@ export default function ChatHome() {
               <div className="bubble">
                 {m.pending ? (
                   <span className="typing">思考中…</span>
+                ) : m.role === 'assistant' ? (
+                  <div className={m.error ? 'bubble-err' : '' + ' md-body'}>
+                    <ReactMarkdown>{m.text}</ReactMarkdown>
+                  </div>
                 ) : (
                   <span className={m.error ? 'bubble-err' : ''}>{m.text}</span>
                 )}
